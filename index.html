@@ -1,0 +1,1381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cardon bleu</title>
+<meta name="description" content="A tiny pinboard for text you copy again and again. Sort snippets into tabs, copy with one click. Runs in your browser, no account, no tracking.">
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<style>
+  :root {
+    /* Studio palette: Ink 35 · Paper 35 · Cobalt 20 · Pink Eraser 10, plus sage / sand for status */
+    --bg: #f9f6ef;
+    --surface: #f0ede6;
+    --surface-2: #e5e1d8;
+    --sheet-bg: #fcfaf6;            /* help modal paper */
+    --line: #ddd8cc;
+    --nav-line: #cfc9bc;
+    --nav-bg: rgba(249, 246, 239, .72);
+    --text: #282828;
+    --muted: #75716a;
+    --muted-strong: #5a5852;
+    --pill-bg: #282828;
+    --pill-fg: #f9f6ef;
+    --btn-bg: #fffdf8;
+    --btn-fg: #282828;
+    --accent: #eda398;              /* pink: icons, hover rings, pressed states */
+    --accent-fg: #282828;
+    --blue: #193497;
+    --type-accent: #193497;         /* cobalt: numbers, dashes, title dot */
+    --focus: #193497;
+    --feature-bg: #193497; --feature-fg: #f9f6ef;
+    --tag-go: #8ec5a4; --tag-ok: #e5c17f; --tag-care: #eda398;
+    --tag-mix: 9%;                  /* tag pill tint, share of the text color */
+    --toc-num: #193497;
+    --card-ring: #bdb7aa;
+    --shadow-lift: 0 18px 40px rgba(40, 40, 40, .14), 0 2px 6px rgba(40, 40, 40, .08);
+    --backdrop: rgba(40, 40, 40, .45);
+
+    --nav-top: 16px;
+    --nav-h: 56px;
+    --gutter: 16px;
+    --ease-pill: cubic-bezier(.3, .7, .2, 1);
+
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --bg: #282828;
+    --surface: #333331;
+    --surface-2: #3e3e3b;
+    --sheet-bg: #282828;
+    --line: #454542;
+    --nav-line: #55554f;
+    --nav-bg: rgba(40, 40, 40, .72);
+    --text: #f9f6ef;
+    --muted: #a29e95;
+    --muted-strong: #b9b5ac;
+    --pill-bg: #f9f6ef;
+    --pill-fg: #282828;
+    --btn-bg: #f9f6ef;
+    --btn-fg: #282828;
+    --blue: #6f8cff;
+    --type-accent: #6f8cff;
+    --focus: #6f8cff;
+    --feature-bg: #2448d8;
+    --tag-mix: 12%;
+    --toc-num: #6f8cff;
+    --card-ring: #66645e;
+    --shadow-lift: 0 18px 40px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .4);
+    --backdrop: rgba(10, 10, 10, .6);
+    color-scheme: dark;
+  }
+
+  @media (max-width: 560px) {
+    :root { --nav-top: 12px; --nav-h: 54px; --gutter: 12px; }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s, color .2s;
+  }
+  button { font: inherit; color: inherit; }
+  svg { display: block; }
+
+  /* ---------- Navbar ---------- */
+  .top-scrim {
+    position: fixed; inset: 0 0 auto 0; z-index: 9;
+    height: calc(var(--nav-top) + var(--nav-h) / 2);
+    background: linear-gradient(var(--bg) 35%, transparent);
+    pointer-events: none;
+  }
+  .nav {
+    position: fixed; z-index: 10;
+    top: var(--nav-top); left: var(--gutter); right: var(--gutter);
+    height: var(--nav-h);
+    display: flex; align-items: stretch; gap: 8px;
+    padding: 3px;
+    border: 1px solid var(--nav-line);
+    border-radius: 999px;
+    background: var(--nav-bg);
+    -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+
+  .tabs-scroll {
+    flex: 1; min-width: 0;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none;
+    border-radius: 999px;
+  }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tabs-scroll.fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 44px), transparent); }
+  .tabs-scroll.fade-l { -webkit-mask-image: linear-gradient(to right, transparent, #000 44px); mask-image: linear-gradient(to right, transparent, #000 44px); }
+  .tabs-scroll.fade-l.fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); mask-image: linear-gradient(to right, transparent, #000 44px, #000 calc(100% - 44px), transparent); }
+
+  .tabs {
+    position: relative;
+    display: flex; align-items: center;
+    width: max-content;
+    height: 100%;
+  }
+  .pill {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    width: 0;
+    border-radius: 999px;
+    background: var(--pill-bg);
+    transition: transform .45s var(--ease-pill), width .45s var(--ease-pill), background .2s;
+    will-change: transform, width;
+  }
+  .pill.no-anim { transition: none; }
+
+  .tab {
+    position: relative; z-index: 1;
+    display: inline-flex; align-items: center;
+    height: 100%;
+    padding: 0 28px;
+    border-radius: 999px;
+    font-size: 17px; letter-spacing: -.005em;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color .3s, box-shadow .15s;
+    outline: none;
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+  .tab:focus-visible { box-shadow: inset 0 0 0 1.5px var(--focus); }
+  .tab.active { color: var(--pill-fg); cursor: default; }
+  .tab-name { outline: none; }
+  .tab.editing { cursor: text; }
+  .tab.editing .tab-name { border-bottom: 1px dashed currentColor; padding-bottom: 1px; }
+
+  /* Delete ×: superscript on the pill, only while renaming */
+  .tab-del {
+    position: absolute; top: 0; right: 2px;
+    width: 18px; height: 18px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--pill-fg) 18%, var(--pill-bg));
+    color: var(--pill-fg);
+    opacity: 0; visibility: hidden;
+    transform: scale(.6);
+    cursor: pointer;
+    transition: opacity .18s, transform .18s, visibility .18s, background .15s;
+  }
+  .tab-del svg { width: 9px; height: 9px; }
+  .nav.multi .tab.editing .tab-del { opacity: 1; visibility: visible; transform: none; }
+  .tab-del:hover { background: var(--accent); color: var(--accent-fg); }
+
+  .tab.drop { color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .tab.received { animation: received .7s ease-out; }
+  @keyframes received {
+    0%   { box-shadow: inset 0 0 0 1.5px var(--accent); background: color-mix(in srgb, var(--accent) 25%, transparent); }
+    100% { box-shadow: inset 0 0 0 1.5px transparent; background: transparent; }
+  }
+
+  .mini {
+    flex: none; align-self: center;
+    display: grid; place-items: center;
+    width: 24px; height: 24px; padding: 0;
+    border: 1px solid var(--nav-line);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .mini:hover, .mini[aria-expanded="true"] { color: var(--text); border-color: var(--text); }
+  .mini:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .mini svg { width: 13px; height: 13px; }
+  .tab-add { margin: 0 14px 0 16px; }
+
+  .nav-actions { flex: none; display: flex; align-items: center; gap: 16px; }
+  .theme-light, :root[data-theme="dark"] .theme-dark { display: none; }
+  :root[data-theme="dark"] .theme-light { display: inline; }
+
+  .add-card {
+    display: grid; place-items: center;
+    width: calc(var(--nav-h) - 8px); height: calc(var(--nav-h) - 8px); padding: 0;
+    border: 0; border-radius: 50%;
+    background: var(--pill-bg); color: var(--pill-fg);
+    cursor: pointer;
+    transition: transform .15s, background .2s;
+  }
+  .add-card:hover { transform: scale(1.05); }
+  .add-card:active { transform: scale(.96); }
+  .add-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .add-card svg { width: 26px; height: 26px; }
+
+  /* Menu */
+  .menu {
+    position: fixed; z-index: 20;
+    min-width: 230px;
+    padding: 6px;
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-lift);
+  }
+  .menu[hidden] { display: none; }
+  .menu button {
+    display: block; width: 100%;
+    padding: 13px 18px;
+    border: 0; border-radius: 12px;
+    background: transparent;
+    text-align: left; font-size: 15px;
+    cursor: pointer;
+  }
+  .menu button:hover, .menu button:focus-visible { background: var(--surface-2); outline: none; }
+  .menu hr { border: 0; height: 1px; margin: 6px 12px; background: var(--line); }
+
+  /* ---------- Help modal (Swiss grid) ---------- */
+  html:has(dialog[open]) { overflow: hidden; }
+  .help {
+    --h-muted: var(--muted-strong);
+    --h-gap: 24px;
+    position: fixed; inset: 0;
+    width: 100%; height: 100%; max-width: none; max-height: none;
+    margin: 0; padding: 0; border: 0;
+    background: transparent; color: var(--text);
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .help::backdrop { background: var(--backdrop); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+  .help-wrap {
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) minmax(0, 1120px) minmax(72px, 1fr);
+    padding: 32px 0 48px;
+    min-height: 100%;
+    align-items: start;
+  }
+  .help-closer { grid-column: 3; grid-row: 1; justify-self: start; position: sticky; top: 32px; margin: 0 0 0 16px; z-index: 2; }
+  .help-close {
+    display: grid; place-items: center;
+    width: 48px; height: 48px; padding: 0;
+    border: 0; border-radius: 50%;
+    background: var(--btn-bg); color: var(--btn-fg);
+    box-shadow: var(--shadow-lift);
+    cursor: pointer;
+    transition: box-shadow .15s, background .15s, color .15s;
+  }
+  .help-close:hover { box-shadow: var(--shadow-lift), inset 0 0 0 1.5px var(--accent); }
+  .help-close:active { background: var(--accent); color: var(--accent-fg); box-shadow: var(--shadow-lift); }
+  .help-close:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .help-close svg { width: 16px; height: 16px; }
+
+  .help-sheet {
+    grid-column: 2; grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: var(--h-gap);
+    padding: 40px 48px 32px;
+    border-radius: 24px;
+    background: var(--sheet-bg);
+    box-shadow: var(--shadow-lift);
+    font-size: 16px; line-height: 1.55;
+  }
+  .help-sheet > * { min-width: 0; }
+
+  /* Masthead */
+  .h-kicker {
+    grid-column: 1 / -1;
+    display: grid; grid-template-columns: subgrid;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--text);
+    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .h-kicker > :nth-child(1) { grid-column: 1 / span 3; }
+  .h-kicker > :nth-child(2) { grid-column: 4 / span 6; }
+  .h-kicker > :nth-child(3) { grid-column: 10 / -1; text-align: right; }
+  .h-title {
+    grid-column: 1 / span 10;
+    margin: 40px 0 0;
+    font-size: clamp(52px, 9vw, 124px); font-weight: 400;
+    line-height: 1.02; letter-spacing: -.03em;
+  }
+  .h-title b { font-weight: 650; }
+  .h-title .h-dot { color: var(--type-accent); }
+  .h-lead {
+    grid-column: 7 / -1;
+    margin: 40px 0 0;
+    font-size: 21px; line-height: 1.4; letter-spacing: -.01em;
+  }
+
+  /* Jump menu */
+  .h-toc { grid-column: 1 / span 3; align-self: start; position: sticky; top: 32px; margin-top: 72px; }
+  .h-toc-label { display: block; padding: 16px 0 12px; border-top: 1px solid var(--text); font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; }
+  .h-toc ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  .h-toc a {
+    display: grid; grid-template-columns: 32px 1fr; align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--h-muted); text-decoration: none; font-size: 15px; line-height: 1.3;
+    transition: color .15s;
+  }
+  .h-toc a span { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--toc-num); }
+  .h-toc a:hover { color: var(--text); }
+  .h-toc a.active { color: var(--text); font-weight: 500; }
+  .h-toc a.active span { color: var(--type-accent); font-weight: 600; }
+  .h-toc a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* Sections */
+  .h-content { grid-column: 4 / -1; margin-top: 72px; }
+  .h-sec {
+    display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); column-gap: var(--h-gap);
+    position: relative;
+    align-items: baseline;
+    padding: 42px 0 56px;
+    border-top: 1px solid var(--text);
+    scroll-margin-top: 32px;
+  }
+  .h-sec-head { grid-column: 1 / span 3; }
+  .h-num { position: absolute; top: 16px; left: 0; font-size: 12px; line-height: 18px; font-weight: 600; letter-spacing: .06em; color: var(--type-accent); font-variant-numeric: tabular-nums; }
+  .h-sec h3 { margin: 0; font-size: 24px; font-weight: 500; line-height: 1.15; letter-spacing: -.02em; }
+  .h-sec-body { grid-column: 4 / -1; }
+  .h-sec-wide { grid-column: 1 / -1; align-self: start; margin-top: 24px; }
+  .h-sec p { margin: 0 0 12px; }
+  .h-sec-body > :last-child { margin-bottom: 0; }
+  .h-sec ul { list-style: none; margin: 0 0 12px; padding: 0; }
+  .h-sec li { position: relative; margin: 4px 0; padding-left: 20px; }
+  .h-sec li::before { content: "–"; position: absolute; left: 0; color: var(--type-accent); }
+  .h-note { color: var(--h-muted); }
+  .help kbd { font: 13px var(--font-mono); padding: 1px 6px; border-radius: 6px; background: var(--surface-2); }
+
+  .h-rows { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); margin: 0 0 16px; }
+  .h-rows dt, .h-rows dd { margin: 0; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .h-rows dt { padding-right: 16px; font-weight: 500; }
+  .h-rows dd { color: var(--h-muted); }
+  .h-rows > :nth-child(-n+2) { padding-top: 0; }
+
+  .help-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .help-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .help-box { padding: 20px 22px 24px; border-radius: 16px; background: var(--surface); color: var(--text); }
+  .help-box.feature { background: var(--feature-bg); color: var(--feature-fg); --tag-mix: 15%; }
+  .help-box h4 { margin: 20px 0 8px; font-size: 20px; font-weight: 500; line-height: 1.2; letter-spacing: -.01em; }
+  .help-box p, .help-box ul { margin: 0; font-size: 15px; line-height: 1.5; }
+  .help-box ul { margin-top: 16px; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 12px; border-radius: 999px;
+    background: color-mix(in srgb, currentColor var(--tag-mix), transparent);
+    font-size: 13px; font-weight: 500;
+  }
+  .tag::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tag-care); }
+  .tag.good::before { background: var(--tag-go); }
+  .tag.ok::before { background: var(--tag-ok); }
+
+  .help .notice-btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 18px 0 14px;
+    background: transparent; color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text);
+    font: 500 15px var(--font-sans);
+  }
+  .help .notice-btn svg { width: 16px; height: 16px; color: var(--accent); }
+  .help .notice-btn:hover { background: var(--surface); }
+
+  /* Footer */
+  .help-foot {
+    grid-column: 1 / -1;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 24px;
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--text);
+    font-size: 13px; color: var(--h-muted);
+  }
+  .help-foot b { color: var(--text); font-weight: 600; }
+  .help-meta { display: inline-flex; align-items: center; gap: 24px; }
+  .help-meta a { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; }
+  .help-meta span a { display: inline; }
+  .help-meta a:hover { color: var(--type-accent); }
+  .help-meta svg { width: 15px; height: 15px; }
+
+  @media (max-width: 1000px) {
+    .h-toc { grid-column: 1 / -1; position: static; margin-top: 56px; }
+    .h-toc ol { columns: 2; column-gap: var(--h-gap); }
+    .h-toc li { break-inside: avoid; }
+    .h-content { grid-column: 1 / -1; margin-top: 56px; }
+    .h-lead { grid-column: 4 / -1; }
+  }
+  @media (max-width: 720px) {
+    .help { --h-gap: 12px; }
+    .help-wrap { grid-template-columns: 12px minmax(0, 1fr) 12px; padding: 12px 0 24px; }
+    .help-closer { position: fixed; top: 22px; right: 22px; margin: 0; }
+    .help-close { width: 44px; height: 44px; }
+    .help-sheet { padding: 28px 20px 24px; border-radius: 20px; font-size: 15px; }
+    .h-kicker { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-right: 56px; }
+    .h-kicker > :nth-child(2) { display: none; }
+    .h-title { grid-column: 1 / -1; margin-top: 28px; }
+    .h-lead { grid-column: 1 / -1; margin-top: 24px; font-size: 18px; }
+    .h-toc ol { columns: 1; }
+    .h-sec { grid-template-columns: minmax(0, 1fr); padding-bottom: 40px; }
+    .h-sec-head, .h-sec-body, .h-sec-wide { grid-column: 1; }
+    .h-sec-head { margin-bottom: 16px; }
+    .h-sec h3 { font-size: 22px; }
+    .h-rows { grid-template-columns: minmax(0, 1fr); }
+    .h-rows dt { padding-bottom: 0; border-bottom: 0; }
+    .h-rows dd { padding-top: 2px; }
+    .h-rows > :nth-child(2) { padding-top: 2px; }
+    .help-grid, .help-grid.two { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* ---------- Grid ---------- */
+  main {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    padding: calc(var(--nav-top) + var(--nav-h) + 20px) var(--gutter) var(--gutter);
+    align-items: start;
+    transition: opacity .18s ease;
+  }
+  main.out { opacity: 0; }
+  @media (max-width: 400px) { main { grid-template-columns: 1fr; } }
+
+  .notice {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px;
+    padding: 8px 8px 8px 24px;
+    border: 1px dashed var(--card-ring);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 14px; line-height: 1.4;
+  }
+  .notice b { color: var(--text); font-weight: 500; }
+  .notice-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .notice-btn {
+    height: 36px; padding: 0 18px;
+    border: 0; border-radius: 999px;
+    background: var(--pill-bg); color: var(--pill-fg);
+    font-size: 14px; cursor: pointer;
+  }
+  .notice-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--muted);
+    padding: 72px 16px;
+    font-size: 15px;
+  }
+
+  /* ---------- Card ---------- */
+  .card {
+    background: var(--surface);
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    scroll-margin-top: calc(var(--nav-top) + var(--nav-h) + 20px);
+    scroll-margin-bottom: 16px;
+    transition: box-shadow .15s, background .2s;
+  }
+  .card:has(textarea:focus, .note:focus) { box-shadow: 0 0 0 1.5px var(--card-ring); }
+  .card-head {
+    display: flex; align-items: center; gap: 4px;
+    padding: 10px 10px 0 8px;
+  }
+  .note {
+    flex: 1; min-width: 0;
+    height: 32px; padding: 0;
+    border: 0; background: transparent;
+    color: var(--text);
+    font: 500 14px/1 var(--font-sans);
+    text-overflow: ellipsis;
+  }
+  .note::placeholder { color: var(--muted); font-weight: 400; }
+  .note:focus { outline: none; }
+  .handle, .copy {
+    flex: none;
+    display: grid; place-items: center;
+    width: 32px; height: 32px; padding: 0;
+    border: 0; border-radius: 50%;
+  }
+  .handle {
+    width: 24px;
+    background: transparent; color: var(--muted);
+    cursor: grab; touch-action: none;
+  }
+  .handle:hover { color: var(--text); }
+  .handle:active { cursor: grabbing; }
+  .copy {
+    background: var(--btn-bg); color: var(--btn-fg);
+    cursor: pointer;
+    transition: background .2s, color .2s, box-shadow .2s, transform .15s;
+  }
+  .copy:hover { transform: scale(1.06); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .copy:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .handle svg { width: 16px; height: 16px; }
+  .copy svg { width: 14px; height: 14px; }
+  .copy .done { display: none; }
+  .copy:active, .copy.copied { background: var(--accent); color: var(--accent-fg); box-shadow: none; }
+  .copy:active .idle, .copy.copied .idle { display: none; }
+  .copy:active .done, .copy.copied .done { display: block; }
+
+  .card textarea {
+    display: block;
+    width: 100%;
+    min-height: 3.5em;
+    padding: 8px 18px 18px;
+    border: 0;
+    resize: none;
+    overflow: hidden;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow-x: auto;
+    tab-size: 2;
+  }
+  .card textarea::placeholder { color: var(--muted); }
+  .card textarea:focus { outline: none; }
+
+  /* Drag states */
+  .card.dragging {
+    position: fixed;
+    z-index: 100;
+    pointer-events: none;
+    opacity: .94;
+    box-shadow: var(--shadow-lift);
+    transform: rotate(1deg);
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  .card.dragging.over-tab { transform: scale(.45); opacity: .8; }
+  .placeholder {
+    position: relative;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+  .placeholder::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: var(--accent);
+    --dash: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='1' y='1' rx='15' style='width:calc(100%25 - 2px);height:calc(100%25 - 2px)' fill='none' stroke='%23000' stroke-width='1.25' stroke-dasharray='14 10'/%3E%3C/svg%3E");
+    -webkit-mask: var(--dash) center / 100% 100% no-repeat;
+            mask: var(--dash) center / 100% 100% no-repeat;
+  }
+  body.is-dragging { user-select: none; cursor: grabbing; }
+
+  @media (max-width: 560px) {
+    .tab { font-size: 15px; padding: 0 24px; }
+    .tab-add { margin-right: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pill, main, .tab, .card.dragging { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-scrim" aria-hidden="true"></div>
+
+<nav class="nav" id="nav" aria-label="Tabs">
+  <div class="tabs-scroll" id="tabsScroll">
+    <div class="tabs" id="tabs" role="tablist">
+      <span class="pill" id="pill" aria-hidden="true"></span>
+      <button class="mini tab-add" id="addTabBtn" title="New tab" aria-label="New tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg>
+      </button>
+    </div>
+  </div>
+  <div class="nav-actions">
+    <button class="mini" id="menuBtn" title="Menu" aria-label="Menu" aria-haspopup="menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+    </button>
+    <button class="add-card" id="addBtn" title="New card" aria-label="New card">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"><path d="M12 3v18M3 12h18"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="menu" id="menu" role="menu" hidden>
+  <button role="menuitem" id="helpBtn">Help &amp; tips</button>
+  <button role="menuitem" id="themeBtn"><span class="theme-dark">Dark mode</span><span class="theme-light">Light mode</span></button>
+  <hr>
+  <button role="menuitem" id="exportBtn">Export as JSON</button>
+  <button role="menuitem" id="importBtn">Import JSON …</button>
+</div>
+<dialog class="help" id="help" aria-labelledby="helpTitle">
+  <div class="help-wrap">
+    <form method="dialog" class="help-closer"><button class="help-close" title="Close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></form>
+    <article class="help-sheet">
+      <header class="h-kicker">
+        <span>Help &amp; tips</span>
+        <span>No account · No tracking · Local data storage</span>
+        <span>Version <span data-app-version></span></span>
+      </header>
+      <h2 class="h-title" id="helpTitle" aria-label="Cardon bleu"><b>Card</b>on<br>bleu<span class="h-dot">.</span></h2>
+      <p class="h-lead">A small pinboard for text you copy again and again. Put each snippet on a card, sort the cards into tabs, and copy any of them with one click.</p>
+
+      <nav class="h-toc" aria-label="Sections">
+        <span class="h-toc-label">Contents</span>
+        <ol>
+          <li><a href="#h-who"><span>01</span>Who is it for?</a></li>
+          <li><a href="#h-storage"><span>02</span>Where are my cards?</a></li>
+          <li><a href="#h-browser"><span>03</span>Which browser?</a></li>
+          <li><a href="#h-install"><span>04</span>Install as an app</a></li>
+          <li><a href="#h-offline"><span>05</span>No internet?</a></li>
+          <li><a href="#h-private"><span>06</span>Private windows</a></li>
+          <li><a href="#h-keys"><span>07</span>Handy shortcuts</a></li>
+          <li><a href="#h-refresh"><span>08</span>Need a refresher?</a></li>
+        </ol>
+      </nav>
+
+      <div class="h-content">
+        <section class="h-sec" id="h-who">
+          <div class="h-sec-head"><span class="h-num">01</span><h3>Who is it for?</h3></div>
+          <div class="h-sec-body">
+            <dl class="h-rows">
+              <dt>Developers &amp; admins</dt><dd>Terminal commands, Git, SQL queries</dd>
+              <dt>AI users</dt><dd>Favourite prompts, ready to paste</dd>
+              <dt>Support &amp; sales</dt><dd>Standard replies, links, email templates</dd>
+              <dt>Marketing &amp; social</dt><dd>Hashtags, bios, tracking links</dd>
+              <dt>Designers</dt><dd>Color codes, CSS snippets, font names</dd>
+              <dt>Gamers</dt><dd>Game commands, server addresses, seeds</dd>
+              <dt>Teachers &amp; students</dt><dd>Formulas, phrases, quotes</dd>
+            </dl>
+            <p class="h-note">In short: anyone who keeps typing the same thing twice.</p>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-storage">
+          <div class="h-sec-head"><span class="h-num">02</span><h3>Where are my cards stored?</h3></div>
+          <div class="h-sec-body">
+            <p>Right here in your browser, on this device. Nothing is sent to a server – not even to the website hosting this page. That’s private and needs no account. It also means:</p>
+            <ul>
+              <li>Another browser or another device starts empty.</li>
+              <li>Clearing your browsing data deletes your cards.</li>
+              <li>If you open the file straight from your computer (not via a web address) and then move or rename it, some browsers won’t find your cards anymore. Move it back and they reappear.</li>
+            </ul>
+            <p><b>So make a backup now and then:</b> <kbd>···</kbd> → <i>Export as JSON</i> saves everything into one file. <i>Import JSON</i> brings it back – in any browser, on any device.</p>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-browser">
+          <div class="h-sec-head"><span class="h-num">03</span><h3>Which browser?</h3></div>
+          <div class="h-sec-body">
+            <p>Every modern browser works. They differ in how long they keep your cards and whether you can install the page as an app.</p>
+          </div>
+          <div class="h-sec-wide help-grid">
+            <div class="help-box feature">
+              <span class="tag good">Recommended</span>
+              <h4>Chrome, Edge, Brave, Arc</h4>
+              <p>Keep your cards reliably, work offline and can install the page as an app on your computer.</p>
+            </div>
+            <div class="help-box">
+              <span class="tag ok">Good</span>
+              <h4>Firefox</h4>
+              <p>Keeps your cards reliably and works offline. Installing as an app is limited. It may ask once if the page may keep its data – say yes.</p>
+            </div>
+            <div class="help-box">
+              <span class="tag">With care</span>
+              <h4>Safari (Mac, iPhone, iPad)</h4>
+              <p>Works fine, but deletes your cards if you don’t open the page for about 7 days. Installing it as an app avoids that – or keep a backup.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-install">
+          <div class="h-sec-head"><span class="h-num">04</span><h3>Install it as an app?</h3></div>
+          <div class="h-sec-body">
+            <p>When the page runs on a website (https), you can add it to your desktop, Dock or home screen. It then opens in its own window with its own icon, like a small program. That’s handy on a computer too: one click from the Dock or taskbar, no browser tab to hunt for, and it sits neatly next to your editor, chat or game.</p>
+            <dl class="h-rows">
+              <dt>Chrome / Edge</dt><dd>Install icon in the address bar, or menu → <i>Install …</i></dd>
+              <dt>Safari on Mac</dt><dd><i>File → Add to Dock</i></dd>
+              <dt>iPhone / iPad</dt><dd><i>Share → Add to Home Screen</i></dd>
+            </dl>
+          </div>
+          <div class="h-sec-wide help-grid two">
+            <div class="help-box">
+              <span class="tag good">Pros</span>
+              <ul>
+                <li>Own window and icon</li>
+                <li>Opens without internet</li>
+                <li>Safari: cards no longer vanish after 7 days</li>
+              </ul>
+            </div>
+            <div class="help-box">
+              <span class="tag">Cons</span>
+              <ul>
+                <li>Safari: the app keeps its own cards, separate from the browser – move them with Export/Import</li>
+                <li>Page updates arrive the next time you’re online</li>
+                <li>Only for the website version, not for a file opened from your computer</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-offline">
+          <div class="h-sec-head"><span class="h-num">05</span><h3>No internet?</h3></div>
+          <div class="h-sec-body">
+            <p>Once you’ve opened the website version, it also loads without internet. Your changes are saved on your device either way. Opened as a file from your computer, it never needs internet at all.</p>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-private">
+          <div class="h-sec-head"><span class="h-num">06</span><h3>Private / incognito windows</h3></div>
+          <div class="h-sec-body">
+            <p>The page works in a private window too, but that window has its own, temporary memory:</p>
+            <ul>
+              <li>Your usual cards don’t show up there – it starts with the starter content.</li>
+              <li>Whatever you add is kept while the window is open, even if you reload.</li>
+              <li>When you close the <b>last</b> private window, everything in it is gone for good.</li>
+            </ul>
+            <p class="h-note">Great for trying things out. If you create something worth keeping, export it before closing the window.</p>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-keys">
+          <div class="h-sec-head"><span class="h-num">07</span><h3>Handy shortcuts</h3></div>
+          <div class="h-sec-body">
+            <dl class="h-rows">
+              <dt>Round button on a card</dt><dd>Copy its content</dd>
+              <dt><kbd>Tab</kbd> in a card</dt><dd>Insert spaces</dd>
+              <dt><kbd>Esc</kbd></dt><dd>Leave the card</dd>
+              <dt><kbd>Enter</kbd> in the note</dt><dd>Jump to the content</dd>
+              <dt>Double-click / <kbd>F2</kbd> on a tab</dt><dd>Rename – the × deletes the tab</dd>
+              <dt>Dotted handle</dt><dd>Drag to sort, drop on a tab to move</dd>
+              <dt>Empty text + empty note</dt><dd>The card disappears</dd>
+            </dl>
+          </div>
+        </section>
+
+        <section class="h-sec" id="h-refresh">
+          <div class="h-sec-head"><span class="h-num">08</span><h3>Need a refresher?</h3></div>
+          <div class="h-sec-body">
+            <p>Bring back the Onboarding tab with all its cards. Your own tabs stay untouched.</p>
+            <button class="notice-btn" id="onboardBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>Show onboarding again</button>
+          </div>
+        </section>
+      </div>
+
+      <footer class="help-foot">
+        <span><b>Cardon bleu</b> · v<span data-app-version></span></span>
+        <span class="help-meta">
+          <a id="repoLink" href="#" target="_blank" rel="noopener" title="Source code on GitHub" aria-label="Source code on GitHub"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
+          <span>MIT · © 2026 <a href="https://storygraphers.com" target="_blank" rel="noopener">storygraphers</a></span>
+        </span>
+      </footer>
+    </article>
+  </div>
+</dialog>
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<main id="grid"></main>
+
+<template id="cardTpl">
+  <div class="card">
+    <div class="card-head">
+      <span class="handle" title="Drag to sort – drop on a tab to move" aria-label="Drag to sort">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+      </span>
+      <input class="note" type="text" spellcheck="false" placeholder="Note …" aria-label="Note for this card" maxlength="140">
+      <button class="copy" title="Copy to clipboard" aria-label="Copy to clipboard">
+        <svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <svg class="done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </button>
+    </div>
+    <textarea spellcheck="false" placeholder="Type or paste …"></textarea>
+  </div>
+</template>
+
+<script>
+(() => {
+  const APP_VERSION = '1.1.0';
+  const REPO_URL = 'https://github.com/storygraphers/cardon-bleu';
+  const KEY = 'cardon-bleu';
+  const LEGACY_KEYS = ['copy-ready-cards', 'snippet-cards-v2', 'snippet-cards-v1']; // read once, from the project's earlier names
+  const THEME = 'cardon-bleu-theme';
+  const LEGACY_THEMES = ['copy-ready-cards-theme', 'snippet-cards-theme'];
+  const legacyTheme = () => LEGACY_THEMES.map(k => store.get(k)).find(Boolean);
+  const $ = s => document.querySelector(s);
+
+  const grid = $('#grid'), tpl = $('#cardTpl'), nav = $('#nav');
+  const scroller = $('#tabsScroll'), tabsEl = $('#tabs'), pill = $('#pill'), addTabBtn = $('#addTabBtn');
+  const X_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  /* ---------- Data ---------- */
+  // Accepts v1 (array of strings) and v2 ({ activeIndex, tabs:[{ name, cards:[{ text, note }] }] }).
+  function normalize(raw) {
+    if (Array.isArray(raw)) raw = { tabs: [{ name: 'General', cards: raw }] };
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.tabs)) return null;
+    const tabs = raw.tabs.filter(t => t && typeof t === 'object').map(t => ({
+      id: uid(),
+      name: (typeof t.name === 'string' && t.name.trim()) ? t.name.replace(/\s+/g, ' ').trim().slice(0, 60) : 'Tab',
+      cards: (Array.isArray(t.cards) ? t.cards : [])
+        .map(c => typeof c === 'string' ? { text: c, note: '' }
+          : (c && typeof c === 'object') ? { text: String(c.text ?? ''), note: String(c.note ?? '').slice(0, 140) } : null)
+        .filter(c => c && (c.text.trim() || c.note.trim()))
+        .map(c => ({ id: uid(), ...c }))
+    }));
+    if (!tabs.length) return null;
+    const ai = Number.isInteger(raw.activeIndex) && raw.activeIndex >= 0 && raw.activeIndex < tabs.length ? raw.activeIndex : 0;
+    return { tabs, active: tabs[ai].id };
+  }
+
+  const ONBOARDING = [
+    { note: '1 · Copy with one click', text: 'Hit the round button on the\nright. This text is now in\nyour clipboard.' },
+    { note: '2 · Just type', text: 'Click in here and write.\nEverything saves itself.\nThe line above is a note –\nuse it as a title.' },
+    { note: '3 · New card', text: 'The big + at the top right\nadds a card to this tab.' },
+    { note: '4 · Tabs', text: 'Small + next to the tabs:\nnew tab.\nDouble-click a tab: rename.\nWhile renaming, × deletes.' },
+    { note: '5 · Sort & move', text: 'Drag the dotted handle to\nsort cards. Drop a card on\na tab to move it there.' },
+    { note: '6 · Delete a card', text: 'Empty the text and the note,\nthen click outside. Gone.' },
+    { note: '7 · Your data', text: 'Cards live only in this\nbrowser – nothing is sent\nanywhere. Back up via\n··· → Export as JSON.' },
+    { note: '8 · Need more?', text: '··· → Help & tips explains\nbrowsers, apps and backups.\n\nDone here? Double-click\n“Onboarding” and hit ×.' }
+  ];
+
+  function load() {
+    for (const k of [KEY, ...LEGACY_KEYS]) {
+      try { const s = normalize(JSON.parse(store.get(k))); if (s) return s; } catch {}
+    }
+    showNotice = true; // nothing stored: first visit, or the storage location changed
+    return normalize({ activeIndex: 1, tabs: [
+      { name: 'Snippets', cards: [
+        { note: 'AI prompt – summary', text: 'Summarize the text below in\n3 short bullet points:\n\n' },
+        { note: 'Email – quick reply', text: 'Hi {name},\n\nthanks for your message!\nI’ll get back to you by {day}.\n\nBest regards' },
+        { note: 'Terminal – Git quick save', text: 'git add .\ngit commit -m "update"\ngit push' },
+        { note: 'Colors – brand palette', text: '#282828  ink\n#f9f6ef  paper\n#193497  cobalt\n#eda398  pink eraser' }
+      ] },
+      { name: 'Onboarding', cards: ONBOARDING }
+    ] });
+  }
+
+  const serialize = () => ({
+    version: 2,
+    activeIndex: Math.max(0, state.tabs.findIndex(t => t.id === state.active)),
+    tabs: state.tabs.map(t => ({ name: t.name, cards: t.cards.map(({ text, note }) => ({ text, note })) }))
+  });
+  let showNotice = false, persistAsked = false;
+  const save = () => {
+    store.set(KEY, JSON.stringify(serialize()));
+    if (showNotice) { showNotice = false; grid.querySelector('.notice')?.remove(); }
+    // Ask the browser not to evict our data (online/HTTPS only, once per session)
+    if (!persistAsked && window.isSecureContext && navigator.storage?.persist) {
+      persistAsked = true;
+      navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {});
+    }
+  };
+
+  let state = load();
+  const activeTab = () => state.tabs.find(t => t.id === state.active);
+  const tabEl = id => tabsEl.querySelector(`.tab[data-id="${CSS.escape(id)}"]`);
+
+  /* ---------- Theme ---------- */
+  const root = document.documentElement;
+  root.dataset.theme = store.get(THEME) || legacyTheme() || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  $('#themeBtn').addEventListener('click', () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    store.set(THEME, root.dataset.theme);
+  });
+
+  /* ---------- Tabs ---------- */
+  function renderTabs() {
+    tabsEl.querySelectorAll('.tab').forEach(e => e.remove());
+    for (const t of state.tabs) {
+      const el = document.createElement('div');
+      el.className = 'tab';
+      el.setAttribute('role', 'tab');
+      el.tabIndex = 0;
+      el.dataset.id = t.id;
+      el.title = 'Double-click to rename';
+      const name = document.createElement('span');
+      name.className = 'tab-name';
+      name.textContent = t.name;
+      const del = document.createElement('span');
+      del.className = 'tab-del';
+      del.title = 'Delete tab';
+      del.setAttribute('aria-label', 'Delete tab');
+      del.innerHTML = X_SVG;
+      el.append(name, del);
+      tabsEl.insertBefore(el, addTabBtn);
+    }
+    nav.classList.toggle('multi', state.tabs.length > 1);
+    markActive(false);
+  }
+
+  const pillRO = new ResizeObserver(() => movePill(true));
+
+  function markActive(animate = true) {
+    const el = tabEl(state.active);
+    tabsEl.querySelectorAll('.tab').forEach(t => {
+      const on = t === el;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on);
+    });
+    movePill(animate);
+    pillRO.disconnect();
+    if (el) pillRO.observe(el);
+  }
+
+  function movePill(animate = true) {
+    const el = tabEl(state.active);
+    if (!el) return;
+    pill.classList.toggle('no-anim', !animate);
+    pill.style.width = el.offsetWidth + 'px';
+    pill.style.transform = `translateX(${el.offsetLeft}px)`;
+    if (!animate) { void pill.offsetWidth; pill.classList.remove('no-anim'); }
+  }
+
+  // Scroll the active tab into the visible part of the navbar
+  function ensureVisible(smooth = true) {
+    const el = tabEl(state.active);
+    if (!el) return;
+    const pad = 48, s = scroller; // > width of the fade-out gradient (44px)
+    const l = el.offsetLeft;
+    const r = (el.nextElementSibling === addTabBtn) ? addTabBtn.offsetLeft + addTabBtn.offsetWidth : l + el.offsetWidth;
+    let to = null;
+    if (l - pad < s.scrollLeft) to = l - pad;
+    else if (r + pad > s.scrollLeft + s.clientWidth) to = r + pad - s.clientWidth;
+    if (to !== null) s.scrollTo({ left: Math.max(0, to), behavior: smooth ? 'smooth' : 'auto' });
+  }
+
+  function updateFades() {
+    const s = scroller;
+    s.classList.toggle('fade-l', s.scrollLeft > 2);
+    s.classList.toggle('fade-r', s.scrollLeft + s.clientWidth < s.scrollWidth - 2);
+  }
+
+  let switchTimer;
+  function activate(id) {
+    if (id === state.active) { ensureVisible(); return; }
+    if (grid.contains(document.activeElement)) document.activeElement.blur();
+    state.active = id;
+    markActive(true);
+    ensureVisible();
+    save();
+    grid.classList.add('out');
+    clearTimeout(switchTimer);
+    switchTimer = setTimeout(() => {
+      renderCards();
+      requestAnimationFrame(() => grid.classList.remove('out'));
+    }, 180);
+  }
+
+  function addTab() {
+    const t = { id: uid(), name: 'New tab', cards: [] };
+    state.tabs.push(t);
+    renderTabs();
+    activate(t.id);
+    requestAnimationFrame(() => startRename(tabEl(t.id)));
+  }
+
+  function deleteTab(id) {
+    if (state.tabs.length < 2) return;
+    const i = state.tabs.findIndex(t => t.id === id);
+    const t = state.tabs[i];
+    const n = t.cards.filter(c => c.text.trim() || c.note.trim()).length;
+    if (n && !confirm(`Delete the tab “${t.name}” and its ${n} card${n > 1 ? 's' : ''}?`)) return;
+    state.tabs.splice(i, 1);
+    const next = state.tabs[Math.max(0, i - 1)];
+    renderTabs();
+    activate(next.id);
+  }
+
+  function startRename(el) {
+    if (!el || el.classList.contains('editing')) return;
+    const t = state.tabs.find(x => x.id === el.dataset.id);
+    const name = el.querySelector('.tab-name');
+    const old = t.name;
+    el.classList.add('editing');
+    try { name.contentEditable = 'plaintext-only'; } catch { name.contentEditable = 'true'; }
+    if (name.contentEditable !== 'plaintext-only') name.contentEditable = 'true';
+    name.focus();
+    const range = document.createRange();
+    range.selectNodeContents(name);
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+
+    const onKey = e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
+      if (e.key === 'Escape') { e.preventDefault(); name.textContent = old; name.blur(); }
+    };
+    const onPaste = e => {
+      e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData?.getData('text/plain') || '').replace(/\s+/g, ' '));
+    };
+    const onBlur = () => {
+      name.removeEventListener('keydown', onKey);
+      name.removeEventListener('paste', onPaste);
+      name.contentEditable = 'false';
+      el.classList.remove('editing');
+      const v = name.textContent.replace(/\s+/g, ' ').trim().slice(0, 60);
+      t.name = v || old;
+      name.textContent = t.name;
+      save();
+      movePill(true);
+      updateFades();
+    };
+    name.addEventListener('keydown', onKey);
+    name.addEventListener('paste', onPaste);
+    name.addEventListener('blur', onBlur, { once: true });
+  }
+
+  // × is only visible while renaming: keep focus, otherwise renaming ends before the click lands
+  tabsEl.addEventListener('pointerdown', e => { if (e.target.closest('.tab-del')) e.preventDefault(); });
+  tabsEl.addEventListener('click', e => {
+    if (e.target.closest('.tab-del')) { deleteTab(e.target.closest('.tab').dataset.id); return; }
+    const el = e.target.closest('.tab');
+    if (el && !el.classList.contains('editing')) activate(el.dataset.id);
+  });
+  tabsEl.addEventListener('dblclick', e => {
+    const el = e.target.closest('.tab');
+    if (el && !e.target.closest('.tab-del')) startRename(el);
+  });
+  tabsEl.addEventListener('keydown', e => {
+    const el = e.target.closest('.tab');
+    if (!el || el.classList.contains('editing')) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activate(el.dataset.id); }
+    if (e.key === 'F2') { e.preventDefault(); startRename(el); }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      const all = [...tabsEl.querySelectorAll('.tab')];
+      const next = all[all.indexOf(el) + (e.key === 'ArrowRight' ? 1 : -1)];
+      if (next) { next.focus(); activate(next.dataset.id); }
+    }
+  });
+  addTabBtn.addEventListener('click', addTab);
+
+  scroller.addEventListener('scroll', updateFades, { passive: true });
+  scroller.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && scroller.scrollWidth > scroller.clientWidth) {
+      scroller.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, { passive: false });
+  new ResizeObserver(updateFades).observe(tabsEl);
+  new ResizeObserver(updateFades).observe(scroller);
+
+  // Any interaction below the navbar brings the active tab back into view
+  const nudge = e => { if (!nav.contains(e.target) && !drag) ensureVisible(); };
+  ['pointerdown', 'focusin', 'wheel', 'input'].forEach(t => document.addEventListener(t, nudge, { passive: true }));
+
+  /* ---------- Cards ---------- */
+  const autosize = ta => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+
+  function createCard(c, tab) {
+    const el = tpl.content.firstElementChild.cloneNode(true);
+    el._card = c;
+    el._tab = tab;
+    const ta = el.querySelector('textarea');
+    const note = el.querySelector('.note');
+    ta.value = c.text;
+    note.value = c.note;
+
+    ta.addEventListener('input', () => { c.text = ta.value; autosize(ta); save(); });
+    note.addEventListener('input', () => { c.note = note.value; save(); });
+    note.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); ta.focus(); }
+      if (e.key === 'Escape') note.blur();
+    });
+    ta.addEventListener('keydown', e => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        ta.setRangeText('  ', ta.selectionStart, ta.selectionEnd, 'end');
+        ta.dispatchEvent(new Event('input'));
+      }
+      if (e.key === 'Escape') ta.blur();
+    });
+    // An empty card (no text, no note) is removed on blur
+    el.addEventListener('focusout', e => {
+      if (el.contains(e.relatedTarget)) return;
+      if (!c.text.trim() && !c.note.trim()) removeCard(el);
+    });
+
+    el.querySelector('.copy').addEventListener('click', e => copy(ta.value, e.currentTarget));
+    el.querySelector('.handle').addEventListener('pointerdown', e => startDrag(e, el));
+    return el;
+  }
+
+  function removeCard(el) {
+    const t = el._tab;
+    t.cards = t.cards.filter(x => x !== el._card);
+    el.remove();
+    save();
+    renderEmpty();
+  }
+
+  function renderCards() {
+    const t = activeTab();
+    grid.replaceChildren(...t.cards.map(c => createCard(c, t)));
+    if (showNotice) grid.prepend(createNotice());
+    grid.querySelectorAll('textarea').forEach(autosize);
+    renderEmpty();
+  }
+
+  function createNotice() {
+    const n = document.createElement('div');
+    n.className = 'notice';
+    n.innerHTML = '<span><b>No saved cards found.</b> You’re looking at the starter content. Got a backup?</span>'
+      + '<span class="notice-actions"><button class="notice-btn">Import backup</button>'
+      + '<button class="mini" title="Dismiss" aria-label="Dismiss">' + X_SVG + '</button></span>';
+    n.querySelector('.notice-btn').addEventListener('click', () => fileIn.click());
+    n.querySelector('.mini').addEventListener('click', () => { showNotice = false; n.remove(); });
+    return n;
+  }
+
+  function renderEmpty() {
+    const hasCards = grid.querySelector('.card');
+    let empty = grid.querySelector('.empty');
+    if (!hasCards && !empty) {
+      empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.textContent = 'No cards in this tab yet. Use the + at the top right to add one.';
+      grid.appendChild(empty);
+    } else if (hasCards && empty) empty.remove();
+  }
+
+  async function copy(text, btn) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const t = document.createElement('textarea');
+      t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      document.execCommand('copy'); t.remove();
+    }
+    btn.classList.add('copied');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => btn.classList.remove('copied'), 1400);
+  }
+
+  $('#addBtn').addEventListener('click', () => {
+    if (grid.classList.contains('out')) { clearTimeout(switchTimer); renderCards(); grid.classList.remove('out'); }
+    const t = activeTab();
+    const c = { id: uid(), text: '', note: '' };
+    t.cards.push(c);
+    grid.querySelector('.empty')?.remove();
+    const el = createCard(c, t);
+    grid.appendChild(el);
+    autosize(el.querySelector('textarea'));
+    el.querySelector('textarea').focus({ preventScroll: true });
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  /* ---------- Drag & drop (pointer events, works with touch) ---------- */
+  let drag = null;
+
+  // Dashed outline whose dashes and gaps are all exactly the same length:
+  // the rect's length is normalised (pathLength) to a whole number of dash + gap units.
+  function dashedOutline(w, h, dash = 14, gap = 10, stroke = 1.25, radius = 16) {
+    const i = stroke / 2, rw = w - stroke, rh = h - stroke, rx = radius - i;
+    const length = 2 * (rw + rh) - 8 * rx + 2 * Math.PI * rx;
+    const units = Math.max(4, Math.round(length / (dash + gap)));
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'><rect x='${i}' y='${i}' width='${rw}' height='${rh}' rx='${rx}' fill='none' stroke='#000' stroke-width='${stroke}' pathLength='${units * (dash + gap)}' stroke-dasharray='${dash} ${gap}'/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  }
+
+  function startDrag(e, card) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    document.activeElement?.blur?.();
+    if (!card.isConnected) return; // may have been removed by blur
+
+    const r = card.getBoundingClientRect();
+    const ph = document.createElement('div');
+    ph.className = 'placeholder';
+    ph.style.height = r.height + 'px';
+    ph.style.setProperty('--dash', dashedOutline(r.width, r.height));
+    card.after(ph);
+
+    const dx = e.clientX - r.left, dy = e.clientY - r.top;
+    Object.assign(card.style, {
+      width: r.width + 'px', height: r.height + 'px',
+      left: r.left + 'px', top: r.top + 'px',
+      transformOrigin: `${dx}px ${dy}px`
+    });
+    card.classList.add('dragging');
+    document.body.classList.add('is-dragging');
+
+    drag = { card, ph, dx, dy, target: null };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', endDrag, { once: true });
+    window.addEventListener('pointercancel', endDrag, { once: true });
+  }
+
+  function onMove(e) {
+    if (!drag) return;
+    const { card, ph, dx, dy } = drag;
+    card.style.left = (e.clientX - dx) + 'px';
+    card.style.top = (e.clientY - dy) + 'px';
+
+    const nr = nav.getBoundingClientRect();
+    const overNav = e.clientX >= nr.left && e.clientX <= nr.right && e.clientY >= nr.top && e.clientY <= nr.bottom;
+
+    // Find the target tab
+    const hit = overNav ? document.elementFromPoint(e.clientX, e.clientY)?.closest('.tab') : null;
+    const target = hit && hit.dataset.id !== state.active ? hit : null;
+    if (drag.target !== target) {
+      drag.target?.classList.remove('drop');
+      target?.classList.add('drop');
+      drag.target = target;
+    }
+    card.classList.toggle('over-tab', overNav);
+
+    if (overNav) {
+      // Scroll the tab bar along horizontally
+      const sr = scroller.getBoundingClientRect();
+      if (e.clientX < sr.left + 40) scroller.scrollLeft -= 10;
+      else if (e.clientX > sr.right - 40) scroller.scrollLeft += 10;
+      return;
+    }
+
+    // Auto-scroll near the edges
+    if (e.clientY < nr.bottom + 50) scrollBy(0, -12);
+    else if (e.clientY > innerHeight - 60) scrollBy(0, 12);
+
+    // Find the card closest to the pointer
+    let best = null, bestDist = Infinity;
+    for (const o of grid.querySelectorAll('.card:not(.dragging)')) {
+      const b = o.getBoundingClientRect();
+      const d = Math.hypot(e.clientX - (b.left + b.width / 2), e.clientY - (b.top + b.height / 2));
+      if (d < bestDist) { bestDist = d; best = { o, b }; }
+    }
+    if (!best) return;
+    const { o, b } = best;
+    if (e.clientX < b.left || e.clientX > b.right || e.clientY < b.top || e.clientY > b.bottom) return;
+    const before = e.clientX < b.left + b.width / 2;
+    if (before && o.previousElementSibling !== ph) o.before(ph);
+    else if (!before && o.nextElementSibling !== ph) o.after(ph);
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    const { card, ph, target } = drag;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
+
+    if (target) {
+      // Move the card to another tab (inserted at the top)
+      target.classList.remove('drop');
+      const to = state.tabs.find(t => t.id === target.dataset.id);
+      const from = card._tab;
+      from.cards = from.cards.filter(c => c !== card._card);
+      to.cards.unshift(card._card);
+      ph.remove();
+      card.remove();
+      target.classList.remove('received');
+      void target.offsetWidth;
+      target.classList.add('received');
+      renderEmpty();
+    } else {
+      ph.replaceWith(card);
+      card.classList.remove('dragging', 'over-tab');
+      card.removeAttribute('style');
+      card._tab.cards = [...grid.querySelectorAll('.card')].map(c => c._card);
+    }
+    document.body.classList.remove('is-dragging');
+    drag = null;
+    save();
+  }
+
+  /* ---------- Backup menu (JSON export / import) ---------- */
+  const menuBtn = $('#menuBtn'), menu = $('#menu'), fileIn = $('#importFile');
+
+  function openMenu() {
+    const r = menuBtn.getBoundingClientRect();
+    menu.style.top = (nav.getBoundingClientRect().bottom + 8) + 'px';
+    menu.style.right = Math.max(8, innerWidth - r.right - 8) + 'px';
+    menu.hidden = false;
+    menuBtn.setAttribute('aria-expanded', 'true');
+    menu.querySelector('button').focus();
+  }
+  function closeMenu() {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    menuBtn.setAttribute('aria-expanded', 'false');
+  }
+  menuBtn.addEventListener('click', () => menu.hidden ? openMenu() : closeMenu());
+  document.addEventListener('pointerdown', e => { if (!menu.contains(e.target) && !menuBtn.contains(e.target)) closeMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !menu.hidden) { closeMenu(); menuBtn.focus(); } });
+
+  $('#exportBtn').addEventListener('click', () => {
+    closeMenu();
+    const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `cardon-bleu-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  $('#importBtn').addEventListener('click', () => { closeMenu(); fileIn.click(); });
+
+  const help = $('#help');
+  $('#helpBtn').addEventListener('click', () => { closeMenu(); help.showModal(); help.scrollTop = 0; markToc(); });
+  help.addEventListener('click', e => { if (e.target === help || e.target.classList.contains('help-wrap')) help.close(); }); // clicking outside the sheet closes it
+  help.querySelectorAll('[data-app-version]').forEach(el => { el.textContent = APP_VERSION; });
+
+  // Jump menu: smooth scroll inside the modal and highlight the section in view
+  const tocLinks = [...help.querySelectorAll('.h-toc a')];
+  const tocTargets = tocLinks.map(a => help.querySelector(a.hash));
+  tocLinks.forEach((a, i) => a.addEventListener('click', e => {
+    e.preventDefault();
+    const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    tocTargets[i].scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  }));
+  function markToc() {
+    let cur = 0;
+    tocTargets.forEach((t, i) => { if (t.getBoundingClientRect().top < innerHeight * .35) cur = i; });
+    if (help.scrollTop + help.clientHeight >= help.scrollHeight - 4) cur = tocTargets.length - 1;
+    tocLinks.forEach((a, i) => a.classList.toggle('active', i === cur));
+  }
+  help.addEventListener('scroll', markToc, { passive: true });
+  $('#repoLink').href = REPO_URL;
+
+  // Re-add the Onboarding tab with all its cards and switch to it
+  $('#onboardBtn').addEventListener('click', () => {
+    const t = { id: uid(), name: 'Onboarding', cards: ONBOARDING.map(c => ({ id: uid(), ...c })) };
+    state.tabs.push(t);
+    help.close();
+    renderTabs();
+    activate(t.id);
+  });
+  fileIn.addEventListener('change', async () => {
+    const file = fileIn.files[0];
+    fileIn.value = '';
+    if (!file) return;
+    let next = null;
+    try { next = normalize(JSON.parse(await file.text())); } catch {}
+    if (!next) { alert('This file doesn’t look like a backup from this page.'); return; }
+    const n = next.tabs.reduce((s, t) => s + t.cards.length, 0);
+    if (!confirm(`Import ${next.tabs.length} tab${next.tabs.length > 1 ? 's' : ''} with ${n} card${n === 1 ? '' : 's'}?\nThis replaces everything currently on this page.`)) return;
+    state = next;
+    renderTabs();
+    renderCards();
+    save();
+    ensureVisible(false);
+  });
+
+  /* ---------- Online version: installable & offline (HTTPS/localhost only, inactive on file://) ---------- */
+  if (window.isSecureContext && location.protocol !== 'file:' && 'serviceWorker' in navigator) {
+    const link = (rel, href) => { const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l); };
+    link('manifest', 'manifest.webmanifest');
+    link('apple-touch-icon', 'icons/icon-180.png');
+    navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(reg => {
+      reg.active?.postMessage({ type: 'cache-page', url: location.href.split('#')[0] });
+    }).catch(() => {}); // if the companion files are missing, the page simply runs without offline mode
+  }
+
+  /* ---------- Init ---------- */
+  if (!store.get(KEY) && LEGACY_KEYS.some(k => store.get(k))) save(); // move data from the earlier name once
+  if (!store.get(THEME) && legacyTheme()) store.set(THEME, legacyTheme());
+  renderTabs();
+  renderCards();
+  updateFades();
+  ensureVisible(false);
+  document.fonts?.ready.then(() => { movePill(false); updateFades(); });
+  addEventListener('resize', () => {
+    movePill(false);
+    updateFades();
+    grid.querySelectorAll('textarea').forEach(autosize);
+  });
+})();
+</script>
+</body>
+</html>
