@@ -22,14 +22,17 @@ The whole app is a single `index.html` with no dependencies and no build step. I
 ## Run it
 
 - **Online:** open the live link above.
-- **Locally:** download `index.html` and open it in your browser. Install and offline mode need HTTPS or `localhost`, so they are switched off when you open the file directly.
+- **Locally:** download `index.html` and double-click it. Everything works, and since the file is on your computer it never needs the internet. Only "install as an app" is unavailable this way, because browsers allow that just for pages served from a web address.
 - **Self-host:** copy all files to any static web host. You need HTTPS for the app features.
 
 ```
 index.html            the app
 manifest.webmanifest  app name and icons for installing
 sw.js                 service worker (offline cache)
-icons/                favicon and app icons
+icons/                favicon, app icons and the social preview image
+robots.txt            search engine rules
+sitemap.xml           sitemap for search engines
+.htaccess             security headers and caching (Apache / LiteSpeed)
 ```
 
 For local development with all features turned on:

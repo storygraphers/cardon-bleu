@@ -3,9 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cardon bleu</title>
-<meta name="description" content="A tiny pinboard for text you copy again and again. Sort snippets into tabs, copy with one click. Runs in your browser, no account, no tracking.">
+<title>Cardon bleu – copy text snippets with one click</title>
+<meta name="description" content="A tiny pinboard for text you copy again and again: prompts, replies, commands. Sort snippets into tabs and copy them with one click. Free, open source, no account, no tracking – your data stays on your device.">
+<link rel="canonical" href="https://cardon-bleu.storygraphers.digital/">
+<meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#282828" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cardon bleu">
+<meta property="og:title" content="Cardon bleu – copy text snippets with one click">
+<meta property="og:description" content="A tiny pinboard for text you copy again and again. No account, no tracking, your data stays on your device.">
+<meta property="og:url" content="https://cardon-bleu.storygraphers.digital/">
+<meta property="og:image" content="https://cardon-bleu.storygraphers.digital/icons/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Cardon bleu – a tiny pinboard for text you copy again and again">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Cardon bleu",
+  "url": "https://cardon-bleu.storygraphers.digital/",
+  "description": "A tiny pinboard for text you copy again and again: prompts, replies, commands. Sort snippets into tabs and copy them with one click. Free, open source, no account, no tracking – your data stays on your device.",
+  "image": "https://cardon-bleu.storygraphers.digital/icons/og-image.png",
+  "applicationCategory": "ProductivityApplication",
+  "operatingSystem": "Any (runs in the web browser)",
+  "browserRequirements": "Requires JavaScript and localStorage",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "license": "https://opensource.org/licenses/MIT",
+  "sameAs": "https://github.com/storygraphers/cardon-bleu",
+  "author": { "@type": "Organization", "name": "storygraphers", "url": "https://storygraphers.com" }
+}
+</script>
 <style>
   :root {
     /* Studio palette: Ink 35 · Paper 35 · Cobalt 20 · Pink Eraser 10, plus sage / sand for status */
@@ -77,6 +111,7 @@
   }
 
   * { box-sizing: border-box; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   html, body { margin: 0; }
   body {
     background: var(--bg);
@@ -566,6 +601,7 @@
 </style>
 </head>
 <body>
+<h1 class="sr-only">Cardon bleu – a tiny pinboard for text you copy again and again</h1>
 
 <div class="top-scrim" aria-hidden="true"></div>
 
