@@ -3,12 +3,14 @@
    The cards themselves live exclusively in the browser's localStorage.
    Strategy: load the page from the network first (updates show up right away), fall back to the cache offline. */
 
-const CACHE = 'cardon-bleu-v3';
+const CACHE = 'cardon-bleu-v4';
 const ASSETS = [
   'manifest.webmanifest',
-  'icons/icon-180.png',
-  'icons/icon-192.png',
-  'icons/icon-512.png'
+  'icons/favicon.svg',
+  'icons/apple-touch-icon.png',
+  'icons/app-icon-192.png',
+  'icons/app-icon-512.png',
+  'icons/app-icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {

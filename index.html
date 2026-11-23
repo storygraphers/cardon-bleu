@@ -8,7 +8,8 @@
 <link rel="canonical" href="https://cardon-bleu.storygraphers.digital/">
 <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#282828" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/app-icon-192.png" type="image/png" sizes="192x192">
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Cardon bleu">
@@ -1392,7 +1393,7 @@
   if (window.isSecureContext && location.protocol !== 'file:' && 'serviceWorker' in navigator) {
     const link = (rel, href) => { const l = document.createElement('link'); l.rel = rel; l.href = href; document.head.appendChild(l); };
     link('manifest', 'manifest.webmanifest');
-    link('apple-touch-icon', 'icons/icon-180.png');
+    link('apple-touch-icon', 'icons/apple-touch-icon.png');
     navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).then(reg => {
       reg.active?.postMessage({ type: 'cache-page', url: location.href.split('#')[0] });
     }).catch(() => {}); // if the companion files are missing, the page simply runs without offline mode
