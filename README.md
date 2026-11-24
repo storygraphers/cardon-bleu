@@ -5,6 +5,7 @@ A tiny pinboard for text you copy again and again. Put each snippet on a card, s
 **Live:** https://cardon-bleu.storygraphers.digital
 
 - One click copies a card
+- Press ⌘V / Ctrl+V anywhere outside a card to turn your clipboard into a new card
 - Tabs for sorting; drag cards to reorder them or drop them on a tab to move them
 - A short note on every card
 - Light and dark mode

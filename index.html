@@ -506,6 +506,9 @@
     transition: box-shadow .15s, background .2s;
   }
   .card:has(textarea:focus, .note:focus) { box-shadow: 0 0 0 1.5px var(--card-ring); }
+  /* A card created by pasting on the page shows the editing ring briefly, then it fades */
+  .card.pasted { box-shadow: 0 0 0 1.5px var(--card-ring); }
+  .card.pasted-fade { transition: box-shadow .8s, background .2s; }
   .card-head {
     display: flex; align-items: center; gap: 4px;
     padding: 10px 10px 0 8px;
@@ -767,6 +770,7 @@
           <div class="h-sec-body">
             <dl class="h-rows">
               <dt>Round button on a card</dt><dd>Copy its content</dd>
+              <dt><kbd>⌘ V</kbd> / <kbd>Ctrl V</kbd> outside a card</dt><dd>Paste the clipboard as a new card</dd>
               <dt><kbd>Tab</kbd> in a card</dt><dd>Insert spaces</dd>
               <dt><kbd>Esc</kbd></dt><dd>Leave the card</dd>
               <dt><kbd>Enter</kbd> in the note</dt><dd>Jump to the content</dd>
@@ -818,7 +822,7 @@
 
 <script>
 (() => {
-  const APP_VERSION = '1.1.0';
+  const APP_VERSION = '1.2.0';
   const REPO_URL = 'https://github.com/storygraphers/cardon-bleu';
   const KEY = 'cardon-bleu';
   const LEGACY_KEYS = ['copy-ready-cards', 'snippet-cards-v2', 'snippet-cards-v1']; // read once, from the project's earlier names
@@ -859,7 +863,7 @@
   const ONBOARDING = [
     { note: '1 · Copy with one click', text: 'Hit the round button on the\nright. This text is now in\nyour clipboard.' },
     { note: '2 · Just type', text: 'Click in here and write.\nEverything saves itself.\nThe line above is a note –\nuse it as a title.' },
-    { note: '3 · New card', text: 'The big + at the top right\nadds a card to this tab.' },
+    { note: '3 · New card', text: 'The big + at the top right\nadds a card to this tab.\n\nOr press ⌘ V / Ctrl V\noutside a card: your\nclipboard becomes a card.' },
     { note: '4 · Tabs', text: 'Small + next to the tabs:\nnew tab.\nDouble-click a tab: rename.\nWhile renaming, × deletes.' },
     { note: '5 · Sort & move', text: 'Drag the dotted handle to\nsort cards. Drop a card on\na tab to move it there.' },
     { note: '6 · Delete a card', text: 'Empty the text and the note,\nthen click outside. Gone.' },
@@ -1191,6 +1195,32 @@
     autosize(el.querySelector('textarea'));
     el.querySelector('textarea').focus({ preventScroll: true });
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  /* ---------- Paste on the page: Cmd/Ctrl+V outside any text field creates a new card ---------- */
+  document.addEventListener('paste', e => {
+    if (help.open || drag) return;
+    const target = e.target instanceof Element ? e.target : null;
+    if (target?.closest('input, textarea, [contenteditable="true"]')) return; // normal paste into a field
+    const text = (e.clipboardData?.getData('text/plain') || '').trim();
+    if (!text) return; // nothing usable, e.g. an image
+    e.preventDefault();
+    if (grid.classList.contains('out')) { clearTimeout(switchTimer); renderCards(); grid.classList.remove('out'); }
+    const t = activeTab();
+    const c = { id: uid(), text, note: '' };
+    t.cards.push(c);
+    save(); // stored right away, the card is not left in editing mode
+    grid.querySelector('.empty')?.remove();
+    const el = createCard(c, t);
+    grid.appendChild(el);
+    autosize(el.querySelector('textarea'));
+    el.classList.add('pasted');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => {
+      el.classList.add('pasted-fade');
+      el.classList.remove('pasted');
+      setTimeout(() => el.classList.remove('pasted-fade'), 800);
+    }, 1200);
   });
 
   /* ---------- Drag & drop (pointer events, works with touch) ---------- */
